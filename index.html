@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>计划表</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar" aria-label="时间条">
+      <div class="week-row">
+        <button class="nav-btn" id="prevBtn" type="button" title="上一周" aria-label="上一周">‹</button>
+        <div class="week-title" id="periodTitle"></div>
+        <button class="nav-btn" id="monthToggle" type="button" title="月日历" aria-label="月日历">▦</button>
+        <button class="nav-btn" id="nextBtn" type="button" title="下一周" aria-label="下一周">›</button>
+      </div>
+      <div class="days" id="days"></div>
+    </header>
+
+    <section class="board" id="board" aria-label="计划表">
+      <section class="zone weekly" data-list="weekTodo">
+        <div class="zone-header">
+          <h2 class="zone-title">周待办事项</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add">
+          <input type="text" autocomplete="off" placeholder="添加周计划">
+          <button type="submit" title="添加" aria-label="添加">+</button>
+        </form>
+        <div class="list"></div>
+      </section>
+
+      <section class="zone daily" data-list="dayTodo">
+        <div class="zone-header">
+          <h2 class="zone-title">日待办事项</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add">
+          <input type="text" autocomplete="off" placeholder="添加日计划">
+          <button type="submit" title="添加" aria-label="添加">+</button>
+        </form>
+        <div class="list"></div>
+      </section>
+
+      <section class="zone done-zone" data-list="weekDone">
+        <div class="zone-header">
+          <h2 class="zone-title">已完成周待办事项</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add"></form>
+        <div class="list"></div>
+      </section>
+
+      <section class="zone done-zone" data-list="dayDone">
+        <div class="zone-header">
+          <h2 class="zone-title">已完成日待办事项</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add"></form>
+        <div class="list"></div>
+      </section>
+    </section>
+
+    <section class="month-view hidden" id="monthView" aria-label="月日历">
+      <section class="calendar-panel">
+        <div class="calendar-weekdays" id="calendarWeekdays"></div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </section>
+
+      <section class="day-detail">
+        <div class="day-detail-header">
+          <h2 class="day-detail-title" id="dayDetailTitle"></h2>
+          <div class="detail-color-picker" id="dayColorPicker" aria-label="日期底色"></div>
+          <div class="day-detail-actions">
+            <button class="jump-btn" id="jumpToSelectedDay" type="button">跳转</button>
+            <span class="zone-count" id="dayDetailCount"></span>
+          </div>
+        </div>
+        <div class="day-detail-list" id="dayDetailList"></div>
+      </section>
+    </section>
+  </main>
+  <script src="./src/app.js" defer></script>
+</body>
+</html>
+
