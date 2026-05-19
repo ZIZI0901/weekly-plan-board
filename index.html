@@ -1,12 +1,720 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>计划表</title>
-  <link rel="stylesheet" href="./src/styles.css">
+  <style>
+    :root {
+      --bg: #f6f7f4;
+      --panel: #fff;
+      --ink: #252824;
+      --muted: #73786f;
+      --line: #dedfd8;
+      --line-strong: #c9cbc2;
+      --accent: #2f6f62;
+      --accent-soft: #e8f1ed;
+      --done: #90958c;
+      --danger: #d64242;
+      --shadow: 0 14px 20px -4px rgba(28, 35, 32, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { user-select: none; }
+
+    .auth-panel {
+      width: min(1320px, calc(100vw - 32px));
+      margin: 16px auto 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .auth-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .auth-form input {
+      width: 180px;
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .auth-form button, .sync-action {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .auth-form button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .auth-form.hidden, .sync-action.hidden { display: none; }
+
+    .auth-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .auth-tab {
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .auth-tab.active {
+      border-color: var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .app {
+      width: min(1320px, calc(100vw - 32px));
+      height: calc(100vh - 66px);
+      min-height: calc(100vh - 66px);
+      margin: 16px auto;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+    }
+
+    .topbar, .zone, .calendar-panel, .day-detail {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .topbar {
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .week-row {
+      display: grid;
+      grid-template-columns: 44px 1fr 44px 44px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-btn, .icon-btn, .check-btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .nav-btn {
+      width: 44px;
+      height: 38px;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .nav-btn:hover, .icon-btn:hover, .check-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .week-title {
+      text-align: center;
+      font-size: clamp(18px, 2.2vw, 25px);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .day-btn {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfbfa;
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      padding: 6px 4px;
+    }
+
+    .day-btn strong {
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .day-btn span {
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .day-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .hidden { display: none !important; }
+
+    .board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-rows: minmax(260px, 1fr) minmax(220px, 0.82fr);
+      align-items: stretch;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .zone {
+      min-height: 260px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .done-zone {
+      min-height: 220px;
+    }
+
+    .zone-header {
+      min-height: 54px;
+      padding: 13px 16px 8px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .zone-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .zone-count {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .quick-add {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .quick-add input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 0 10px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .quick-add input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .quick-add button {
+      width: 38px;
+      height: 36px;
+      flex: 0 0 auto;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 21px;
+      line-height: 1;
+    }
+
+    .list {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .done-zone .quick-add { display: none; }
+    .done-zone .list { background: #fbfbfa; }
+
+    .empty {
+      margin: auto;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .task {
+      width: 100%;
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) 34px 34px 34px;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 7px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      position: relative;
+    }
+
+    .daily .task { grid-template-columns: 28px minmax(0, 1fr) 34px 34px 34px; }
+    .done-zone .task { grid-template-columns: 28px minmax(0, 1fr) 34px 34px; }
+
+    .task.dragging {
+      opacity: 0.55;
+      outline: 2px solid var(--accent);
+    }
+
+    .task.sorting { pointer-events: none; }
+
+    .drag-ghost {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 12px 28px rgba(30, 35, 28, 0.16);
+      transform: translate(-50%, -50%);
+    }
+
+    .task.done { background: #f8f8f6; }
+
+    .task.color-orange { background: #fff0e7; }
+    .task.color-green { background: #edf8f1; }
+    .task.color-blue { background: #eaf2ff; }
+    .task.color-pink { background: #fff0f6; }
+    .task.color-yellow { background: #fff9e7; }
+
+    .check-btn {
+      width: 24px;
+      height: 24px;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .task.done .check-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .task-text {
+      min-width: 0;
+      min-height: 30px;
+      padding: 5px 6px;
+      border-radius: 4px;
+      line-height: 1.35;
+      outline: none;
+      overflow-wrap: anywhere;
+      cursor: text;
+    }
+
+    .task-text:focus {
+      background: var(--accent-soft);
+      box-shadow: inset 0 0 0 1px rgba(47, 111, 98, 0.22);
+    }
+
+    .task.done .task-text {
+      color: var(--done);
+      text-decoration: line-through;
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .drag-btn {
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .drag-btn:active { cursor: grabbing; }
+    .send-btn { font-size: 17px; }
+    .delete-btn { font-size: 20px; }
+
+    .icon-btn.copied {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .copy-toast {
+      position: absolute;
+      z-index: 25;
+      left: 0;
+      top: -30px;
+      transform: translateX(-50%);
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(30, 35, 28, 0.18);
+      pointer-events: none;
+    }
+
+    .task-color-picker {
+      position: absolute;
+      z-index: 20;
+      top: 38px;
+      right: 44px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(30, 35, 28, 0.14);
+    }
+
+    .task-color-chip {
+      width: 20px;
+      height: 20px;
+      border: 2px solid transparent;
+      border-radius: 999px;
+      box-shadow: inset 0 0 0 1px rgba(37, 40, 36, 0.14);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .task-color-chip.active {
+      border-color: var(--accent);
+    }
+
+    .task-color-chip.orange { background: #fff0e7; }
+    .task-color-chip.green { background: #edf8f1; }
+    .task-color-chip.blue { background: #eaf2ff; }
+    .task-color-chip.pink { background: #fff0f6; }
+    .task-color-chip.yellow { background: #fff9e7; }
+
+    .month-view {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+      grid-template-rows: minmax(360px, 1fr) minmax(220px, 0.66fr);
+      gap: 14px;
+    }
+
+    .calendar-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .calendar-weekdays, .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .calendar-weekdays {
+      border-bottom: 1px solid var(--line);
+      background: #fbfbfa;
+    }
+
+    .calendar-weekdays div {
+      padding: 10px 6px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .calendar-grid {
+      min-height: 0;
+      grid-template-rows: repeat(6, minmax(74px, 1fr));
+    }
+
+    .calendar-day {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      align-items: start;
+      justify-items: center;
+      gap: 6px;
+      padding: 10px 6px;
+    }
+
+    .calendar-day:nth-child(7n) { border-right: 0; }
+    .calendar-day.outside { color: var(--muted); background: #fafaf8; }
+    .calendar-day.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+
+    .calendar-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .calendar-day.today .calendar-num {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .calendar-day.color-white { background: #fff; }
+    .calendar-day.color-orange { background: #fff0e7; }
+    .calendar-day.color-green { background: #edf8f1; }
+    .calendar-day.color-blue { background: #eaf2ff; }
+    .calendar-day.color-pink { background: #fff0f6; }
+    .calendar-day.color-yellow { background: #fff9e7; }
+
+    .task-dots {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      width: min(56px, 100%);
+    }
+
+    .task-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--danger);
+    }
+
+    .day-detail {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .day-detail-header {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .day-detail-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .detail-color-picker {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .detail-color-wrap {
+      position: relative;
+      justify-self: center;
+    }
+
+    .detail-color-toggle {
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .detail-color-toggle:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .detail-color-picker {
+      position: absolute;
+      z-index: 20;
+      top: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(30, 35, 28, 0.14);
+    }
+
+    .detail-color-chip {
+      width: 20px;
+      height: 20px;
+      border: 2px solid transparent;
+      border-radius: 999px;
+      box-shadow: inset 0 0 0 1px rgba(37, 40, 36, 0.14);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .detail-color-chip.active {
+      border-color: var(--accent);
+    }
+
+    .detail-color-chip.orange { background: #fff0e7; }
+    .detail-color-chip.green { background: #edf8f1; }
+    .detail-color-chip.blue { background: #eaf2ff; }
+    .detail-color-chip.pink { background: #fff0f6; }
+    .detail-color-chip.yellow { background: #fff9e7; }
+
+    .jump-btn {
+      height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .day-detail-title {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .day-detail-list {
+      overflow: auto;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .detail-task {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-task.done {
+      color: var(--done);
+      text-decoration: line-through;
+    }
+
+    .detail-mark {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--danger);
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 820px) {
+      .app {
+        width: min(100vw - 20px, 720px);
+        margin: 10px auto;
+        height: auto;
+        min-height: calc(100vh - 20px);
+      }
+
+      .board {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, auto);
+      }
+
+      .month-view {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(4, auto);
+      }
+
+      .calendar-grid { grid-template-rows: repeat(6, minmax(58px, 1fr)); }
+      .calendar-day { padding: 7px 3px; }
+      .auth-panel { grid-template-columns: 1fr; }
+      .auth-form { justify-content: flex-start; }
+      .auth-form input { width: min(100%, 220px); }
+      .days { gap: 5px; }
+      .day-btn { min-height: 46px; }
+      .week-title { white-space: normal; }
+    }
+  </style>
 </head>
 <body>
+  <section class="auth-panel" aria-label="sync">
+    <div id="syncStatus">Local mode</div>
+    <form class="auth-form" id="authForm">
+      <div class="auth-tabs" role="tablist" aria-label="Account mode">
+        <button class="auth-tab active" data-auth-mode="signin" type="button">登录</button>
+        <button class="auth-tab" data-auth-mode="signup" type="button">注册</button>
+        <button class="auth-tab" data-auth-mode="reset" type="button">找回</button>
+      </div>
+      <input id="authUsername" type="text" autocomplete="username" placeholder="用户名">
+      <input class="hidden" id="authEmail" type="email" autocomplete="email" placeholder="找回邮箱">
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="密码">
+      <button class="primary" id="authSubmitBtn" type="submit">登录</button>
+    </form>
+    <button class="sync-action hidden" id="signOutBtn" type="button">Sign out</button>
+  </section>
   <main class="app">
     <header class="topbar" aria-label="时间条">
       <div class="week-row">
@@ -63,15 +771,39 @@
     </section>
 
     <section class="month-view hidden" id="monthView" aria-label="月日历">
+      <section class="zone monthly" data-list="monthTodo">
+        <div class="zone-header">
+          <h2 class="zone-title">月计划</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add">
+          <input type="text" autocomplete="off" placeholder="添加月计划">
+          <button type="submit" title="添加" aria-label="添加">+</button>
+        </form>
+        <div class="list"></div>
+      </section>
+
       <section class="calendar-panel">
         <div class="calendar-weekdays" id="calendarWeekdays"></div>
         <div class="calendar-grid" id="calendarGrid"></div>
       </section>
 
+      <section class="zone done-zone" data-list="monthDone">
+        <div class="zone-header">
+          <h2 class="zone-title">已完成月计划</h2>
+          <span class="zone-count"></span>
+        </div>
+        <form class="quick-add"></form>
+        <div class="list"></div>
+      </section>
+
       <section class="day-detail">
         <div class="day-detail-header">
           <h2 class="day-detail-title" id="dayDetailTitle"></h2>
-          <div class="detail-color-picker" id="dayColorPicker" aria-label="日期底色"></div>
+          <div class="detail-color-wrap">
+            <button class="detail-color-toggle" id="dayColorToggle" type="button" aria-expanded="false">底色</button>
+            <div class="detail-color-picker hidden" id="dayColorPicker" aria-label="日期底色"></div>
+          </div>
           <div class="day-detail-actions">
             <button class="jump-btn" id="jumpToSelectedDay" type="button">跳转</button>
             <span class="zone-count" id="dayDetailCount"></span>
@@ -81,7 +813,1157 @@
       </section>
     </section>
   </main>
-  <script src="./src/app.js" defer></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://fctdnejiepqkenzxffgl.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdGRuZWppZXBxa2VuenhmZmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTQ1MjgsImV4cCI6MjA5NDczMDUyOH0.kC1LhE7MTf4M_XDP1ABjbaExYe8Smotr45s4ISohhkg";
+    const STORAGE_KEY = "minimal-plan-board-v1";
+    const CLOUD_TABLE = "plan_states";
+    const PROFILE_TABLE = "user_profiles";
+    const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+    const calendarColors = ["orange", "green", "blue", "pink", "yellow"];
+    const defaultState = () => ({ weeks: {}, months: {}, days: {}, dayColors: {} });
+    const state = loadState();
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let viewedMonday = startOfWeek(new Date());
+    let selectedDate = toKey(new Date());
+    let currentView = "board";
+    let viewedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let calendarSelectedDate = selectedDate;
+    let sorting = null;
+    let openTaskColorPicker = null;
+    let dayColorPickerOpen = false;
+    let suppressDragClick = false;
+    let currentUser = null;
+    let syncReady = false;
+    let applyingRemoteState = false;
+    let saveTimer = null;
+    let latestCloudUpdatedAt = null;
+    let cloudChannel = null;
+    let authMode = "signin";
+
+    const authForm = document.getElementById("authForm");
+    const authTabs = [...document.querySelectorAll("[data-auth-mode]")];
+    const authUsername = document.getElementById("authUsername");
+    const authEmail = document.getElementById("authEmail");
+    const authPassword = document.getElementById("authPassword");
+    const authSubmitBtn = document.getElementById("authSubmitBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const syncStatus = document.getElementById("syncStatus");
+    const periodTitle = document.getElementById("periodTitle");
+    const daysEl = document.getElementById("days");
+    const boardEl = document.getElementById("board");
+    const monthView = document.getElementById("monthView");
+    const monthToggle = document.getElementById("monthToggle");
+    const calendarWeekdays = document.getElementById("calendarWeekdays");
+    const calendarGrid = document.getElementById("calendarGrid");
+    const dayDetailTitle = document.getElementById("dayDetailTitle");
+    const dayDetailCount = document.getElementById("dayDetailCount");
+    const dayDetailList = document.getElementById("dayDetailList");
+    const dayColorPicker = document.getElementById("dayColorPicker");
+    const dayColorToggle = document.getElementById("dayColorToggle");
+    const jumpToSelectedDay = document.getElementById("jumpToSelectedDay");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const zones = {
+      weekTodo: document.querySelector('[data-list="weekTodo"]'),
+      weekDone: document.querySelector('[data-list="weekDone"]'),
+      monthTodo: document.querySelector('[data-list="monthTodo"]'),
+      monthDone: document.querySelector('[data-list="monthDone"]'),
+      dayTodo: document.querySelector('[data-list="dayTodo"]'),
+      dayDone: document.querySelector('[data-list="dayDone"]')
+    };
+
+    prevBtn.addEventListener("click", () => shiftPeriod(-1));
+    nextBtn.addEventListener("click", () => shiftPeriod(1));
+    monthToggle.addEventListener("click", toggleMonthView);
+    jumpToSelectedDay.addEventListener("click", () => jumpToDay(calendarSelectedDate));
+    dayColorToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      dayColorPickerOpen = !dayColorPickerOpen;
+      renderDayColorPicker();
+    });
+    authForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitAuthForm();
+    });
+    authTabs.forEach((button) => {
+      button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+    });
+    signOutBtn.addEventListener("click", signOut);
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".task-color-picker") && !event.target.closest(".drag-btn")) {
+        closeTaskColorPicker();
+      }
+      if (!event.target.closest(".detail-color-wrap")) {
+        closeDayColorPicker();
+      }
+    });
+
+    Object.entries(zones).forEach(([type, zone]) => {
+      const form = zone.querySelector(".quick-add");
+      if (!form || !form.querySelector("input")) return;
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const input = form.querySelector("input");
+        addTask(type, input.value);
+        input.value = "";
+      });
+    });
+
+    render();
+    initAuth();
+
+    function loadState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (parsed && typeof parsed === "object") {
+          if (!parsed.weeks) parsed.weeks = {};
+          if (!parsed.months) parsed.months = {};
+          if (!parsed.days) parsed.days = {};
+          if (!parsed.dayColors) parsed.dayColors = {};
+          return parsed;
+        }
+      } catch (error) {
+        console.warn("计划表数据读取失败", error);
+      }
+      return defaultState();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (!syncReady || !currentUser || applyingRemoteState) return;
+      queueCloudSave();
+    }
+
+    async function initAuth() {
+      setSyncStatus("Checking account...");
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        setSyncStatus(`Auth error: ${error.message}`);
+        return;
+      }
+      await setSessionUser(data.session?.user || null);
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        setSessionUser(session?.user || null);
+      });
+    }
+
+    async function setSessionUser(user) {
+      currentUser = user;
+      syncReady = false;
+      if (cloudChannel) {
+        supabaseClient.removeChannel(cloudChannel);
+        cloudChannel = null;
+      }
+
+      if (!user) {
+        authForm.classList.remove("hidden");
+        signOutBtn.classList.add("hidden");
+        setSyncStatus("本地模式。登录后可多端同步。");
+        return;
+      }
+
+      if (location.hash.includes("type=recovery")) {
+        authMode = "recovery";
+        authForm.classList.remove("hidden");
+        signOutBtn.classList.remove("hidden");
+        authTabs.forEach((button) => button.classList.remove("active"));
+        authUsername.classList.add("hidden");
+        authEmail.classList.add("hidden");
+        authPassword.classList.remove("hidden");
+        authSubmitBtn.textContent = "更新密码";
+        setSyncStatus("请输入新密码。");
+        return;
+      }
+
+      authForm.classList.add("hidden");
+      signOutBtn.classList.remove("hidden");
+      setSyncStatus(`已登录：${user.user_metadata?.username || user.email || user.id}。正在加载云端数据...`);
+      await loadCloudState();
+      syncReady = true;
+      subscribeCloudState();
+      queueCloudSave();
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      authTabs.forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
+      authUsername.classList.toggle("hidden", mode === "reset");
+      authEmail.classList.toggle("hidden", mode === "signin");
+      authPassword.classList.toggle("hidden", mode === "reset");
+      authPassword.autocomplete = mode === "signup" ? "new-password" : "current-password";
+      authSubmitBtn.textContent = mode === "signup" ? "注册" : mode === "reset" ? "发送重置邮件" : "登录";
+      setSyncStatus(mode === "signup" ? "注册需要用户名、找回邮箱和密码。" : mode === "reset" ? "输入找回邮箱，Supabase 会发送重置密码邮件。" : "输入用户名和密码登录。");
+    }
+
+    function submitAuthForm() {
+      if (authMode === "signup") {
+        signUp();
+      } else if (authMode === "reset") {
+        resetPassword();
+      } else if (authMode === "recovery") {
+        updatePassword();
+      } else {
+        signIn();
+      }
+    }
+
+    function cleanUsername(value) {
+      return value.trim().toLowerCase();
+    }
+
+    async function findProfileByUsername(username) {
+      return supabaseClient
+        .from(PROFILE_TABLE)
+        .select("email")
+        .eq("username", username)
+        .maybeSingle();
+    }
+
+    async function signIn() {
+      const username = cleanUsername(authUsername.value);
+      const password = authPassword.value;
+      if (!username || !password) {
+        setSyncStatus("请输入用户名和密码。");
+        return;
+      }
+      setSyncStatus("正在登录...");
+      const { data: profile, error: profileError } = await findProfileByUsername(username);
+      if (profileError || !profile?.email) {
+        setSyncStatus("没有找到这个用户名。");
+        return;
+      }
+      const email = profile.email;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) setSyncStatus(`登录失败：${error.message}`);
+    }
+
+    async function signUp() {
+      const username = cleanUsername(authUsername.value);
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+      if (!username || !email || !password) {
+        setSyncStatus("请输入用户名、找回邮箱和密码。");
+        return;
+      }
+      if (!/^[a-z0-9_]{3,24}$/.test(username)) {
+        setSyncStatus("用户名只能用小写字母、数字、下划线，长度 3-24。");
+        return;
+      }
+      setSyncStatus("正在注册...");
+      const { data: existing } = await findProfileByUsername(username);
+      if (existing) {
+        setSyncStatus("这个用户名已经被使用。");
+        return;
+      }
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username }
+        }
+      });
+      if (error) {
+        setSyncStatus(`注册失败：${error.message}`);
+      } else {
+        const user = data.user;
+        if (user) {
+          await supabaseClient
+            .from(PROFILE_TABLE)
+            .upsert({ user_id: user.id, username, email });
+        }
+        setSyncStatus("注册成功。如果收到确认邮件，先完成确认，再用用户名登录。");
+      }
+    }
+
+    async function resetPassword() {
+      const email = authEmail.value.trim();
+      if (!email) {
+        setSyncStatus("请输入找回邮箱。");
+        return;
+      }
+      setSyncStatus("正在发送重置邮件...");
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin
+      });
+      if (error) {
+        setSyncStatus(`发送失败：${error.message}`);
+      } else {
+        setSyncStatus("重置邮件已发送，请查看邮箱。");
+      }
+    }
+
+    async function updatePassword() {
+      const password = authPassword.value;
+      if (!password) {
+        setSyncStatus("请输入新密码。");
+        return;
+      }
+      const { error } = await supabaseClient.auth.updateUser({ password });
+      if (error) {
+        setSyncStatus(`更新失败：${error.message}`);
+      } else {
+        location.hash = "";
+        setSyncStatus("密码已更新。");
+        authForm.classList.add("hidden");
+      }
+    }
+
+    async function signOut() {
+      setSyncStatus("正在退出...");
+      await supabaseClient.auth.signOut();
+    }
+
+    async function loadCloudState() {
+      if (!currentUser) return;
+      const { data, error } = await supabaseClient
+        .from(CLOUD_TABLE)
+        .select("data, updated_at")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        setSyncStatus(`Cloud load failed: ${error.message}`);
+        return;
+      }
+
+      if (!data) {
+        latestCloudUpdatedAt = null;
+        setSyncStatus("No cloud data yet. Saving this device...");
+        return;
+      }
+
+      latestCloudUpdatedAt = data.updated_at;
+      applyRemoteState(data.data);
+      setSyncStatus("Synced from cloud.");
+    }
+
+    function applyRemoteState(remoteData) {
+      if (!remoteData || typeof remoteData !== "object") return;
+      applyingRemoteState = true;
+      replaceObject(state, {
+        ...defaultState(),
+        ...remoteData,
+        weeks: remoteData.weeks || {},
+        months: remoteData.months || {},
+        days: remoteData.days || {},
+        dayColors: remoteData.dayColors || {}
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+      applyingRemoteState = false;
+    }
+
+    function replaceObject(target, source) {
+      Object.keys(target).forEach((key) => delete target[key]);
+      Object.assign(target, source);
+    }
+
+    function queueCloudSave() {
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(saveCloudState, 600);
+    }
+
+    async function saveCloudState() {
+      if (!currentUser) return;
+      setSyncStatus("Saving...");
+      const { data, error } = await supabaseClient
+        .from(CLOUD_TABLE)
+        .upsert({
+          user_id: currentUser.id,
+          data: state,
+          updated_at: new Date().toISOString()
+        })
+        .select("updated_at")
+        .single();
+
+      if (error) {
+        setSyncStatus(`Cloud save failed: ${error.message}`);
+        return;
+      }
+      latestCloudUpdatedAt = data?.updated_at || latestCloudUpdatedAt;
+      setSyncStatus("Synced.");
+    }
+
+    function subscribeCloudState() {
+      if (!currentUser) return;
+      cloudChannel = supabaseClient
+        .channel(`plan-state-${currentUser.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: CLOUD_TABLE,
+            filter: `user_id=eq.${currentUser.id}`
+          },
+          (payload) => {
+            const row = payload.new;
+            if (!row || row.updated_at === latestCloudUpdatedAt) return;
+            latestCloudUpdatedAt = row.updated_at;
+            applyRemoteState(row.data);
+            setSyncStatus("Updated from another device.");
+          }
+        )
+        .subscribe();
+    }
+
+    function setSyncStatus(message) {
+      syncStatus.textContent = message;
+    }
+
+    function ensureWeek(key) {
+      if (!state.weeks[key]) state.weeks[key] = { todo: [], done: [] };
+      return state.weeks[key];
+    }
+
+    function ensureMonth(key) {
+      if (!state.months[key]) state.months[key] = { todo: [], done: [] };
+      return state.months[key];
+    }
+
+    function ensureDay(key) {
+      if (!state.days[key]) state.days[key] = { todo: [], done: [] };
+      return state.days[key];
+    }
+
+    function currentData(type) {
+      const weekKey = toKey(viewedMonday);
+      const monthKey = toMonthKey(viewedMonth);
+      if (type === "weekTodo") return ensureWeek(weekKey).todo;
+      if (type === "weekDone") return ensureWeek(weekKey).done;
+      if (type === "monthTodo") return ensureMonth(monthKey).todo;
+      if (type === "monthDone") return ensureMonth(monthKey).done;
+      if (type === "dayTodo") return ensureDay(selectedDate).todo;
+      return ensureDay(selectedDate).done;
+    }
+
+    function render() {
+      if (currentView === "month") {
+        boardEl.classList.add("hidden");
+        monthView.classList.remove("hidden");
+        daysEl.classList.add("hidden");
+        periodTitle.textContent = `${viewedMonth.getFullYear()}年${viewedMonth.getMonth() + 1}月`;
+        monthToggle.textContent = "▤";
+        monthToggle.title = "四区间";
+        monthToggle.setAttribute("aria-label", "四区间");
+        prevBtn.title = "上一月";
+        nextBtn.title = "下一月";
+        renderList("monthTodo");
+        renderList("monthDone");
+        renderMonth();
+        saveState();
+        return;
+      }
+
+      boardEl.classList.remove("hidden");
+      monthView.classList.add("hidden");
+      daysEl.classList.remove("hidden");
+      monthToggle.textContent = "▦";
+      monthToggle.title = "月日历";
+      monthToggle.setAttribute("aria-label", "月日历");
+      prevBtn.title = "上一周";
+      nextBtn.title = "下一周";
+
+      const weekStart = new Date(viewedMonday);
+      const weekEnd = addDays(weekStart, 6);
+      periodTitle.textContent = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+      renderDays();
+      renderList("weekTodo");
+      renderList("weekDone");
+      renderList("dayTodo");
+      renderList("dayDone");
+      saveState();
+    }
+
+    function renderDays() {
+      daysEl.innerHTML = "";
+      for (let index = 0; index < 7; index += 1) {
+        const date = addDays(viewedMonday, index);
+        const key = toKey(date);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `day-btn${key === selectedDate ? " active" : ""}`;
+        button.innerHTML = `<strong>${dayNames[index]}</strong><span>${date.getMonth() + 1}/${date.getDate()}</span>`;
+        button.addEventListener("click", () => {
+          selectedDate = key;
+          render();
+        });
+        daysEl.appendChild(button);
+      }
+    }
+
+    function renderMonth() {
+      calendarWeekdays.innerHTML = "";
+      dayNames.forEach((name) => {
+        const cell = document.createElement("div");
+        cell.textContent = name;
+        calendarWeekdays.appendChild(cell);
+      });
+
+      calendarGrid.innerHTML = "";
+      const firstDay = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1);
+      const gridStart = startOfWeek(firstDay);
+      const todayKey = toKey(new Date());
+
+      for (let index = 0; index < 42; index += 1) {
+        const date = addDays(gridStart, index);
+        const key = toKey(date);
+        const count = getDayTaskCount(key);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = [
+          "calendar-day",
+          date.getMonth() === viewedMonth.getMonth() ? "" : "outside",
+          key === calendarSelectedDate ? "active" : "",
+          key === todayKey ? "today" : "",
+          state.dayColors[key] ? `color-${state.dayColors[key]}` : ""
+        ].filter(Boolean).join(" ");
+
+        const dots = Array.from({ length: Math.min(count, 8) }, () => '<span class="task-dot"></span>').join("");
+        button.innerHTML = `<span class="calendar-num">${date.getDate()}</span><span class="task-dots">${dots}</span>`;
+        button.addEventListener("click", () => {
+          calendarSelectedDate = key;
+          renderMonth();
+        });
+        calendarGrid.appendChild(button);
+      }
+
+      renderDayDetail();
+    }
+
+    function renderDayDetail() {
+      const date = parseDateKey(calendarSelectedDate);
+      const data = state.days[calendarSelectedDate] || { todo: [], done: [] };
+      const tasks = [
+        ...data.todo.map((task) => ({ ...task, done: false })),
+        ...data.done.map((task) => ({ ...task, done: true }))
+      ];
+
+      dayDetailTitle.textContent = `${formatDate(date)}`;
+      dayDetailCount.textContent = `${tasks.length} 项`;
+      renderDayColorPicker();
+      dayDetailList.innerHTML = "";
+
+      if (tasks.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "暂无计划";
+        dayDetailList.appendChild(empty);
+        return;
+      }
+
+      tasks.forEach((task) => {
+        const row = document.createElement("div");
+        row.className = `detail-task${task.done ? " done" : ""}`;
+        row.innerHTML = `<span class="detail-mark"></span><span>${escapeHtml(task.text || "未命名计划")}</span>`;
+        dayDetailList.appendChild(row);
+      });
+    }
+
+    function renderDayColorPicker() {
+      const selectedColor = state.dayColors[calendarSelectedDate] || "";
+      dayColorPicker.innerHTML = "";
+      dayColorPicker.classList.toggle("hidden", !dayColorPickerOpen);
+      dayColorToggle.setAttribute("aria-expanded", String(dayColorPickerOpen));
+      calendarColors.forEach((color) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `detail-color-chip ${color}${selectedColor === color ? " active" : ""}`;
+        chip.title = color;
+        chip.setAttribute("aria-label", `设置日期底色 ${color}`);
+        chip.addEventListener("click", () => setCalendarDayColor(color));
+        dayColorPicker.appendChild(chip);
+      });
+    }
+
+    function closeDayColorPicker() {
+      if (!dayColorPickerOpen) return;
+      dayColorPickerOpen = false;
+      renderDayColorPicker();
+    }
+
+    function setCalendarDayColor(color) {
+      if (state.dayColors[calendarSelectedDate] === color) {
+        delete state.dayColors[calendarSelectedDate];
+      } else {
+        state.dayColors[calendarSelectedDate] = color;
+      }
+      dayColorPickerOpen = false;
+      saveState();
+      renderMonth();
+    }
+
+    function renderList(type) {
+      const zone = zones[type];
+      const list = zone.querySelector(".list");
+      const data = currentData(type);
+      zone.querySelector(".zone-count").textContent = `${data.length} 项`;
+      list.innerHTML = "";
+
+      if (data.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "暂无计划";
+        list.appendChild(empty);
+        return;
+      }
+
+      data.forEach((task, index) => {
+        list.appendChild(createTaskElement(type, task, index));
+      });
+    }
+
+    function createTaskElement(type, task, index) {
+      const item = document.createElement("div");
+      item.className = [
+        "task",
+        task.done ? "done" : "",
+        task.color ? `color-${task.color}` : ""
+      ].filter(Boolean).join(" ");
+      item.dataset.type = type;
+      item.dataset.index = String(index);
+
+      const check = document.createElement("button");
+      check.type = "button";
+      check.className = "check-btn";
+      check.title = task.done ? "取消完成" : "完成";
+      check.setAttribute("aria-label", check.title);
+      check.textContent = task.done ? "✓" : "";
+      check.addEventListener("click", () => toggleDone(type, index));
+
+      const text = document.createElement("div");
+      text.className = "task-text";
+      text.contentEditable = "true";
+      text.spellcheck = false;
+      text.textContent = task.text || "点击输入计划";
+      text.addEventListener("focus", () => {
+        if (text.textContent === "点击输入计划") text.textContent = "";
+      });
+      text.addEventListener("blur", () => {
+        const value = text.textContent.trim();
+        task.text = value || "未命名计划";
+        saveState();
+        renderList(type);
+      });
+      text.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          text.blur();
+        }
+      });
+
+      const drag = document.createElement("button");
+      drag.type = "button";
+      drag.className = "icon-btn drag-btn";
+      drag.title = "拖动排序";
+      drag.setAttribute("aria-label", "拖动排序");
+      drag.textContent = "☰";
+      drag.addEventListener("pointerdown", (event) => startSort(event, type, index, item));
+      drag.addEventListener("click", () => {
+        if (suppressDragClick) {
+          suppressDragClick = false;
+          return;
+        }
+        toggleTaskColorPicker(type, index);
+      });
+
+      item.append(check, text, drag);
+      if (isTaskColorPickerOpen(type, index)) {
+        item.appendChild(createTaskColorPicker(type, task, index));
+      }
+
+      if (type === "weekTodo") {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "icon-btn send-btn";
+        send.title = "移到下一周";
+        send.setAttribute("aria-label", "移到下一周");
+        send.textContent = "↷";
+        bindSendButton(send, type, index, () => moveToNextWeek(index), () => copyToNextWeek(index), "已复制到下一周");
+        item.appendChild(send);
+      }
+
+      if (type === "dayTodo") {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "icon-btn send-btn";
+        send.title = "移到下一日";
+        send.setAttribute("aria-label", "移到下一日");
+        send.textContent = "↷";
+        bindSendButton(send, type, index, () => moveToNextDay(index), () => copyToNextDay(index), "已复制到明天");
+        item.appendChild(send);
+      }
+
+      if (type === "monthTodo") {
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "icon-btn send-btn";
+        send.title = "移到下一月";
+        send.setAttribute("aria-label", "移到下一月");
+        send.textContent = "↷";
+        bindSendButton(send, type, index, () => moveToNextMonth(index), () => copyToNextMonth(index), "已复制到下一月");
+        item.appendChild(send);
+      }
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "icon-btn delete-btn";
+      remove.title = "删除";
+      remove.setAttribute("aria-label", "删除");
+      remove.textContent = "×";
+      bindPressButton(remove, type, index, () => deleteTask(type, index), () => copyToCurrentList(type, index), "已复制到当前", ".delete-btn");
+      item.appendChild(remove);
+
+      return item;
+    }
+
+    function isTaskColorPickerOpen(type, index) {
+      return openTaskColorPicker?.type === type && openTaskColorPicker.index === index;
+    }
+
+    function toggleTaskColorPicker(type, index) {
+      const previousType = openTaskColorPicker?.type;
+      openTaskColorPicker = isTaskColorPickerOpen(type, index) ? null : { type, index };
+      if (previousType && previousType !== type) renderList(previousType);
+      renderList(type);
+    }
+
+    function closeTaskColorPicker() {
+      if (!openTaskColorPicker) return;
+      const type = openTaskColorPicker.type;
+      openTaskColorPicker = null;
+      renderList(type);
+    }
+
+    function createTaskColorPicker(type, task, index) {
+      const picker = document.createElement("div");
+      picker.className = "task-color-picker";
+      picker.addEventListener("click", (event) => event.stopPropagation());
+      calendarColors.forEach((color) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `task-color-chip ${color}${task.color === color ? " active" : ""}`;
+        chip.title = color;
+        chip.setAttribute("aria-label", `设置计划条底色 ${color}`);
+        chip.addEventListener("click", () => setTaskColor(type, index, color));
+        picker.appendChild(chip);
+      });
+      return picker;
+    }
+
+    function setTaskColor(type, index, color) {
+      const task = currentData(type)[index];
+      if (!task) return;
+      if (task.color === color) {
+        delete task.color;
+      } else {
+        task.color = color;
+      }
+      saveState();
+      renderList(type);
+    }
+
+    function bindSendButton(button, type, index, moveAction, copyAction, copyMessage) {
+      bindPressButton(button, type, index, moveAction, copyAction, copyMessage, ".send-btn");
+    }
+
+    function bindPressButton(button, type, index, tapAction, holdAction, holdMessage, feedbackSelector) {
+      let timer = null;
+      let copied = false;
+
+      const clearTimer = () => {
+        if (!timer) return;
+        window.clearTimeout(timer);
+        timer = null;
+      };
+
+      button.addEventListener("pointerdown", (event) => {
+        if (event.button !== undefined && event.button !== 0) return;
+        copied = false;
+        clearTimer();
+        timer = window.setTimeout(() => {
+          copied = true;
+          timer = null;
+          const taskId = currentData(type)[index]?.id;
+          holdAction();
+          window.setTimeout(() => showCopyFeedback(type, taskId, holdMessage, feedbackSelector), 0);
+        }, 520);
+      });
+
+      button.addEventListener("pointerup", clearTimer);
+      button.addEventListener("pointerleave", clearTimer);
+      button.addEventListener("pointercancel", clearTimer);
+      button.addEventListener("contextmenu", (event) => event.preventDefault());
+      button.addEventListener("click", () => {
+        if (copied) {
+          copied = false;
+          return;
+        }
+        tapAction();
+      });
+    }
+
+    function showCopyFeedback(type, taskId, message, feedbackSelector) {
+      if (!taskId) return;
+      const list = currentData(type);
+      const index = list.findIndex((task) => task.id === taskId);
+      if (index < 0) return;
+      const task = zones[type].querySelector(`.task[data-index="${index}"]`);
+      if (!task) return;
+      const button = task.querySelector(feedbackSelector);
+      if (!button) return;
+      const defaultText = button.textContent;
+
+      button.classList.add("copied");
+      button.textContent = "✓";
+
+      task.querySelector(".copy-toast")?.remove();
+      const toast = document.createElement("div");
+      toast.className = "copy-toast";
+      toast.textContent = message;
+      task.appendChild(toast);
+      const minLeft = toast.offsetWidth / 2 + 4;
+      const maxLeft = task.clientWidth - toast.offsetWidth / 2 - 4;
+      const buttonCenter = button.offsetLeft + button.offsetWidth / 2;
+      const toastLeft = Math.max(minLeft, Math.min(buttonCenter, maxLeft));
+      toast.style.left = `${toastLeft}px`;
+
+      window.setTimeout(() => {
+        button.classList.remove("copied");
+        button.textContent = defaultText;
+        toast.remove();
+      }, 900);
+    }
+
+    function addTask(type, value) {
+      const text = value.trim();
+      if (!text) return;
+      currentData(type).push({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        text,
+        done: false
+      });
+      render();
+    }
+
+    function toggleDone(type, index) {
+      const from = currentData(type);
+      const task = from.splice(index, 1)[0];
+      if (!task) return;
+      task.done = !task.done;
+
+      const targetType = type === "weekTodo"
+        ? "weekDone"
+        : type === "weekDone"
+          ? "weekTodo"
+          : type === "monthTodo"
+            ? "monthDone"
+            : type === "monthDone"
+              ? "monthTodo"
+              : type === "dayTodo"
+                ? "dayDone"
+                : "dayTodo";
+      currentData(targetType).push(task);
+      render();
+    }
+
+    function moveToNextWeek(index) {
+      const source = currentData("weekTodo");
+      const task = source.splice(index, 1)[0];
+      if (!task) return;
+      const nextWeek = toKey(addDays(viewedMonday, 7));
+      ensureWeek(nextWeek).todo.push({ ...task, done: false });
+      render();
+    }
+
+    function copyToNextWeek(index) {
+      const task = currentData("weekTodo")[index];
+      if (!task) return;
+      const nextWeek = toKey(addDays(viewedMonday, 7));
+      ensureWeek(nextWeek).todo.push(cloneTaskForNextPeriod(task));
+      render();
+    }
+
+    function moveToNextDay(index) {
+      const source = currentData("dayTodo");
+      const task = source.splice(index, 1)[0];
+      if (!task) return;
+      const nextDay = toKey(addDays(parseDateKey(selectedDate), 1));
+      ensureDay(nextDay).todo.push({ ...task, done: false });
+      render();
+    }
+
+    function copyToNextDay(index) {
+      const task = currentData("dayTodo")[index];
+      if (!task) return;
+      const nextDay = toKey(addDays(parseDateKey(selectedDate), 1));
+      ensureDay(nextDay).todo.push(cloneTaskForNextPeriod(task));
+      render();
+    }
+
+    function moveToNextMonth(index) {
+      const source = currentData("monthTodo");
+      const task = source.splice(index, 1)[0];
+      if (!task) return;
+      const nextMonth = toMonthKey(new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + 1, 1));
+      ensureMonth(nextMonth).todo.push({ ...task, done: false });
+      render();
+    }
+
+    function copyToNextMonth(index) {
+      const task = currentData("monthTodo")[index];
+      if (!task) return;
+      const nextMonth = toMonthKey(new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + 1, 1));
+      ensureMonth(nextMonth).todo.push(cloneTaskForNextPeriod(task));
+      render();
+    }
+
+    function copyToCurrentList(type, index) {
+      const task = currentData(type)[index];
+      if (!task) return;
+      currentData(type).splice(index + 1, 0, cloneTaskForNextPeriod(task));
+      render();
+    }
+
+    function cloneTaskForNextPeriod(task) {
+      return {
+        ...task,
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        done: false
+      };
+    }
+
+    function deleteTask(type, index) {
+      currentData(type).splice(index, 1);
+      render();
+    }
+
+    function startSort(event, type, index, item) {
+      if (event.button !== undefined && event.button !== 0) return;
+      event.preventDefault();
+      dragCancel();
+      suppressDragClick = false;
+
+      sorting = {
+        type,
+        index,
+        item,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        active: false,
+        ghost: null,
+        ghostRect: null,
+        bounds: null,
+        timer: window.setTimeout(() => activateSort(), 160)
+      };
+
+      document.addEventListener("pointermove", onSortMove);
+      document.addEventListener("pointerup", finishSort);
+      document.addEventListener("pointercancel", dragCancel);
+    }
+
+    function activateSort() {
+      if (!sorting || sorting.active) return;
+      sorting.active = true;
+      suppressDragClick = true;
+      sorting.item.classList.add("dragging", "sorting");
+      const rect = sorting.item.getBoundingClientRect();
+      const bounds = zones[sorting.type].querySelector(".list").getBoundingClientRect();
+      sorting.ghost = sorting.item.cloneNode(true);
+      sorting.ghostRect = rect;
+      sorting.bounds = bounds;
+      sorting.ghost.classList.add("drag-ghost");
+      sorting.ghost.style.width = `${rect.width}px`;
+      document.body.appendChild(sorting.ghost);
+      moveGhost();
+    }
+
+    function onSortMove(event) {
+      if (!sorting) return;
+      event.preventDefault();
+      sorting.lastX = event.clientX;
+      sorting.lastY = event.clientY;
+      const moved = Math.abs(event.clientX - sorting.startX) + Math.abs(event.clientY - sorting.startY);
+      if (moved > 6) activateSort();
+      moveGhost();
+    }
+
+    function moveGhost() {
+      if (!sorting?.ghost) return;
+      const halfWidth = sorting.ghostRect.width / 2;
+      const halfHeight = sorting.ghostRect.height / 2;
+      const minX = sorting.bounds.left + halfWidth;
+      const maxX = sorting.bounds.right - halfWidth;
+      const minY = sorting.bounds.top + halfHeight;
+      const maxY = sorting.bounds.bottom - halfHeight;
+      const x = clamp(sorting.lastX, minX, maxX);
+      const y = clamp(sorting.lastY, minY, maxY);
+      sorting.ghost.style.left = `${x}px`;
+      sorting.ghost.style.top = `${y}px`;
+    }
+
+    function finishSort(event) {
+      if (!sorting) return;
+      window.clearTimeout(sorting.timer);
+
+      if (sorting.active) {
+        const targetIndex = getDropIndex(event.clientX, event.clientY, sorting.type, sorting.index);
+        reorderTask(sorting.type, sorting.index, targetIndex);
+      }
+
+      dragCancel();
+    }
+
+    function dragCancel() {
+      if (!sorting) return;
+      window.clearTimeout(sorting.timer);
+      sorting.ghost?.remove();
+      sorting.item.classList.remove("dragging", "sorting");
+      document.removeEventListener("pointermove", onSortMove);
+      document.removeEventListener("pointerup", finishSort);
+      document.removeEventListener("pointercancel", dragCancel);
+      sorting = null;
+    }
+
+    function getDropIndex(clientX, clientY, type, fromIndex) {
+      const listEl = zones[type].querySelector(".list");
+      const tasks = [...listEl.querySelectorAll(".task")];
+      const element = document.elementFromPoint(clientX, clientY);
+      const targetList = element?.closest(".list");
+      const target = element?.closest(".task");
+
+      if (targetList !== listEl) return fromIndex;
+      if (!target || !listEl.contains(target)) return tasks.length - 1;
+
+      const targetIndex = Number(target.dataset.index);
+      const rect = target.getBoundingClientRect();
+      const placeAfter = clientY > rect.top + rect.height / 2;
+      let dropIndex = targetIndex + (placeAfter ? 1 : 0);
+      if (dropIndex > fromIndex) dropIndex -= 1;
+      return dropIndex;
+    }
+
+    function reorderTask(type, fromIndex, toIndex) {
+      const list = currentData(type);
+      const clampedIndex = Math.max(0, Math.min(toIndex, list.length - 1));
+      if (fromIndex === clampedIndex) return;
+
+      const task = list.splice(fromIndex, 1)[0];
+      if (!task) return;
+      list.splice(clampedIndex, 0, task);
+      render();
+    }
+
+    function getDayTaskCount(key) {
+      const data = state.days[key] || { todo: [], done: [] };
+      return data.todo.length + data.done.length;
+    }
+
+    function toggleMonthView() {
+      if (currentView === "month") {
+        currentView = "board";
+      } else {
+        currentView = "month";
+        calendarSelectedDate = selectedDate;
+        const date = parseDateKey(selectedDate);
+        viewedMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+      }
+      render();
+    }
+
+    function shiftPeriod(direction) {
+      if (currentView === "month") {
+        shiftMonth(direction);
+      } else {
+        shiftWeek(direction);
+      }
+    }
+
+    function shiftMonth(direction) {
+      viewedMonth = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + direction, 1);
+      const selected = parseDateKey(calendarSelectedDate);
+      if (selected.getFullYear() !== viewedMonth.getFullYear() || selected.getMonth() !== viewedMonth.getMonth()) {
+        calendarSelectedDate = toKey(new Date(viewedMonth));
+      }
+      render();
+    }
+
+    function shiftWeek(direction) {
+      viewedMonday = addDays(viewedMonday, direction * 7);
+      const today = new Date();
+      const weekEnd = addDays(viewedMonday, 6);
+      if (today >= viewedMonday && today <= weekEnd) {
+        selectedDate = toKey(today);
+      } else {
+        selectedDate = toKey(viewedMonday);
+      }
+      render();
+    }
+
+    function jumpToDay(key) {
+      selectedDate = key;
+      calendarSelectedDate = key;
+      const date = parseDateKey(key);
+      viewedMonday = startOfWeek(date);
+      viewedMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+      currentView = "board";
+      render();
+    }
+
+    function startOfWeek(date) {
+      const value = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const day = value.getDay() || 7;
+      value.setDate(value.getDate() - day + 1);
+      return value;
+    }
+
+    function addDays(date, amount) {
+      const value = new Date(date);
+      value.setDate(value.getDate() + amount);
+      return value;
+    }
+
+    function toKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function toMonthKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      return `${year}-${month}`;
+    }
+
+    function parseDateKey(key) {
+      const [year, month, day] = key.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function clamp(value, min, max) {
+      if (max < min) return min;
+      return Math.max(min, Math.min(value, max));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(date) {
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    }
+  </script>
 </body>
 </html>
-
